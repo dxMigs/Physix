@@ -7,14 +7,14 @@ pg.init()
 
 #Körper Objekt
 class Body:
-    def __init__(self, pos, mass, velocity, color, radius, velocity_vecor_angle=0):
+    def __init__(self, pos, mass, velocity, color, velocity_vecor_angle=0):
         #Geschwindigkeit und Position als zwei dimensionale Vektoren festlegen
         self.pos = pg.Vector2(pos) 
         self.velocity = pg.Vector2(velocity) 
         self.velocity.rotate_ip(velocity_vecor_angle)
         self.mass = mass
         self.color = color
-        self.radius = radius
+        self.radius = ((self.mass / 3.141) ** (1/3))*3
         self.spur = [(pos[0], pos[1])]
         self.repetitions = 0
 
@@ -22,21 +22,28 @@ class Body:
     def update_position(self):
         self.pos += (self.velocity*dt) / FPS
         self.repetitions += 1
-        if self.repetitions >= 2500/dt: 
+        if self.repetitions >= 150/dt: 
             self.spur.append(self.pos.xy)
             self.repetitions = 0
-        if len(self.spur) > dt/5: self.spur.pop(0)
+        if len(self.spur) > 300: self.spur.pop(0)
     
     def gravitation(self, other):
         #Distanz zwischen zwei Körper
         self.distance = pg.math.Vector2.distance_to(self.pos, other.pos) 
         #Richtung der Kraft als Normalvektor
         self.direction = pg.math.Vector2.normalize(other.pos - self.pos)
-        #Berechnung der Gravitationskraft 
-        f = G * (self.mass * other.mass) / self.distance**2
-        #Berechnung der Geschwindigkeit
-        self.velocity += (((f * self.direction)/self.mass)* dt) /FPS
-        other.velocity += (((f * -self.direction)/other.mass)* dt) /FPS
+        if self.distance > (self.radius + other.radius):
+            #Berechnung der Gravitationskraft 
+            f = G * (self.mass * other.mass) / self.distance**2
+            #Berechnung der Geschwindigkeit
+            self.velocity += (((f * self.direction)/self.mass)* dt) /FPS
+            other.velocity += (((f * -self.direction)/other.mass)* dt) /FPS
+        else: 
+            self.gm = self.mass + other.mass
+            self.velocity = (self.velocity * self.mass + other.velocity * other.mass) / self.gm
+            self.pos = (self.pos * self.mass + other.pos * other.mass) / self.gm
+            self.masse, other.masse = self.gm, 0
+            self.radius = ((self.gm / 3.141) ** (1/3))*3
 
 #Fenster Einstellungen
 WIDTH = 1700
@@ -57,17 +64,20 @@ ORANGE = (255,165,0)
 EARTH_COLOR = (0,191,255)
 
 #Berechnungen pro Sekunde
-FPS = 16384
+FPS = 240
 
 #Uhr die die Geschwindigkeit der Simulation festlegt
 clock = pg.time.Clock()
-dt = 512
+dt = 64
 
 #Fonts
 text_font = pg.font.SysFont("Arial", 25)
 
 #Gravitationskonstante
-G = 3
+G = 5
+
+#Dichte
+p = 5.515
 
 #Weitere Variable
 clicking = False
@@ -81,8 +91,7 @@ bodies = []
 
 #Sonne Objekt
 masse_sonne = 200
-radius_sonne = 8
-Sonne = Body((screen_center[0], screen_center[1]), masse_sonne, (0,0), YELLOW, radius_sonne)
+Sonne = Body((screen_center[0], screen_center[1]), masse_sonne, (0,0), YELLOW)
 bodies.append(Sonne)
 
 #Funktion für Aktualisierung des Fensters
@@ -101,6 +110,7 @@ def update_screen():
 #Funktion zuständig für die Gravitation
 def gravitation_function():
     for b1, b2 in combinations(bodies, 2):
+        if b1.mass == 0 or b2.mass == 0: continue
         b1.gravitation(b2)
 
 def on_button_up(pos1, pos2):
@@ -116,9 +126,8 @@ def on_button_up(pos1, pos2):
 
 
 def spawn_body(pos, velocity, angle):
-    masse = 1
-    radius = 4
-    body_object = Body(pos, masse, velocity, GREY, radius, velocity_vecor_angle=angle)
+    masse = 100
+    body_object = Body(pos, masse, velocity, GREY, velocity_vecor_angle=angle)
     bodies.append(body_object)
 
 
@@ -128,7 +137,12 @@ while running:
     clock.tick(FPS)
     update_screen()
     gravitation_function()
+
     
+    for body in bodies:
+        if body.mass == 0:
+            bodies.remove(body)
+
     for event in pg.event.get():
         if event.type == pg.QUIT: running = False
         if event.type == pg.KEYDOWN:
@@ -156,6 +170,7 @@ while running:
         mid_pos = pg.mouse.get_pos()
         pg.draw.line(screen, GREY, pos1, mid_pos)
 
+    
 
     pg.display.flip()
 
