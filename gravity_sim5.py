@@ -29,21 +29,22 @@ class Body:
     
     def gravitation(self, other):
         #Distanz zwischen zwei Körper
-        self.distance = pg.math.Vector2.distance_to(self.pos, other.pos) 
+        distance = pg.math.Vector2.distance_to(self.pos, other.pos) 
         #Richtung der Kraft als Normalvektor
-        self.direction = pg.math.Vector2.normalize(other.pos - self.pos)
-        if self.distance > (self.radius + other.radius):
+        direction = pg.math.Vector2.normalize(other.pos - self.pos)
+        if distance > (self.radius + other.radius):
             #Berechnung der Gravitationskraft 
-            f = G * (self.mass * other.mass) / self.distance**2
+            f = G * (self.mass * other.mass) / distance**2
             #Berechnung der Geschwindigkeit
-            self.velocity += (((f * self.direction)/self.mass)* dt) /FPS
-            other.velocity += (((f * -self.direction)/other.mass)* dt) /FPS
-        else: 
-            self.gm = self.mass + other.mass
-            self.velocity = (self.velocity * self.mass + other.velocity * other.mass) / self.gm
-            self.pos = (self.pos * self.mass + other.pos * other.mass) / self.gm
-            self.masse, other.masse = self.gm, 0
-            self.radius = ((self.gm / 3.141) ** (1/3))*3
+            self.velocity += (((f * direction)/self.mass)* dt) /FPS
+            other.velocity += (((f * -direction)/other.mass)* dt) /FPS
+        else:
+            gm = self.mass + other.mass
+            self.velocity = (self.velocity * self.mass + other.velocity * other.mass) / gm
+            self.pos = (self.pos * self.mass + other.pos * other.mass) / gm
+            self.mass, other.mass = gm, 0
+            self.radius = ((gm /math.pi) ** (1/3))*3
+       
 
 #Fenster Einstellungen
 WIDTH = 1700
@@ -106,6 +107,8 @@ def update_screen():
         pg.draw.circle(screen, body.color, body.pos, body.radius)
         #"Aktualisiere Position" Funktion aufrufen
         body.update_position()
+        if body.mass == 0:
+            bodies.remove(body)
         
 #Funktion zuständig für die Gravitation
 def gravitation_function():
@@ -137,11 +140,6 @@ while running:
     clock.tick(FPS)
     update_screen()
     gravitation_function()
-
-    
-    for body in bodies:
-        if body.mass == 0:
-            bodies.remove(body)
 
     for event in pg.event.get():
         if event.type == pg.QUIT: running = False
